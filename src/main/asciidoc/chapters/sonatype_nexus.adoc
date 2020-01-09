@@ -1,0 +1,32 @@
+[[section-nexus]]
+=== Sonatype Nexus
+Sonatype Nexus is a repository manager that is able to host maven, nuget, docker and many more types of repositories.
+
+This chapter describes the set up process within our infrastructure as well as the configuration specifics.
+
+==== Preparing the nexus-values.yaml file to perform the Sonatype Nexus installation
+To setup Nexus, it is highly recommended to prepare a specific values.yaml file that contains the installation specific configuration values.
+
+The following box shows the nexus-values.yaml that has been used for that:
+
+[source, yaml]
+nexusProxy:
+  env:
+    nexusDockerHost: container.swisslog.net
+    nexusHttpHost: nexus.swisslog.net
+    enforceHttps: false
+    cloudIamAuthEnabled: false
+
+NOTE: In this nexus-values.yaml file, we have configured a nexus host as well as a container host to be able to allow basic auth secured access to either the docker repositories or the maven repositories used for our developments.
+
+WARNING: Due to the fact that we missing an swisslog managed DNS server we are unable to use certificate secured authentication methods.
+
+==== Setting up Sonatype Nexus with HELM in Kubernetes clusters
+The setup of Sonatype Nexus was done by executing the following command:
+
+[source, bash]
+$ helm install --name nexus -f nexus-values.yaml stable/sonatype-nexus
+
+==== Accessing the nexus UI
+
+http://nexus.swisslog.net:30055

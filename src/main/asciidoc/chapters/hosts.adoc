@@ -1,0 +1,26 @@
+[[section-hosts]]
+=== Name Resolution
+As long as we do not have a working solution concerning Domain Name Resolution, you'll have to add the following to your hosts file.
+
+[source, hosts]
+10.49.145.110		cicd.swisslog.net	
+10.49.145.110		container.swisslog.net
+10.49.145.110		charts.swisslog.net
+10.49.145.110		nexus.swisslog.net
+10.49.145.110		gitlab.swisslog.net
+10.49.145.139		confluence.swisslog.net
+
+==== Where do i find my hosts file?
+If you are unsure wherer to find the correct file please read further. 
+
+===== Unix
+If you are using a unix based system, you'll find your hosts file browsing:
+
+*/etc/hosts*
+
+===== Windows
+On Windows machines you'll find the hosts file browsing:
+ 
+*c:\Windows\system32\drivers\etc\hosts*
+
+TIP: Please be aware that you have to open the file as an administrator in order to be able to save the file after changing it.

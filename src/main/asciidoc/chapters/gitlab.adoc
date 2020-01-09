@@ -1,0 +1,9 @@
+[[section-gitlab]]
+=== Gitlab
+
+For Source Code Management purpose we use aninternal Gitlab instance
+To get more information about Gitlab please visit https://gitlab.com
+
+==== Accessing the internal Gitlab Instance
+
+To access the internal Gitlab instance, please visit http://http://gitlab.swisslog.net:31823/

@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>	
+	<groupId>com.swisslog</groupId>
+	<artifactId>SwisslogKubeInfraDocumentation</artifactId>	
+	<version>0.0.1-SNAPSHOT</version>
+	<name>Swisslog Kubernetes Infrastructure Documentation</name>
+	<description>Documentation of the Kubernetes Infrastructure of Swisslog</description>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<java.version>1.8</java.version>
+		<spring-cloud.version>Greenwich.RC2</spring-cloud.version>
+		<docker.repository>http://nexus.swisslog.net:30055/repository/docker-nightly/</docker.repository>
+		<imageName>sl-kube-infra-docu</imageName>
+		
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    	<asciidoctorj.pdf.version>1.5.0-alpha.16</asciidoctorj.pdf.version>
+    	<asciidoctorj.diagram.version>1.5.11</asciidoctorj.diagram.version>
+    	<asciidoctor.maven-plugin.version>1.5.7.1</asciidoctor.maven-plugin.version>
+    	<sourceDirectory>./src/main/asciidoc</sourceDirectory>
+    	<outputDirectory>./src/main/resources/static/documentation</outputDirectory>
+
+    	<dockerfile-maven-version>1.4.9</dockerfile-maven-version>
+    	<cucumber.version>1.2.5</cucumber.version>
+    	<cucumber.junit.version>1.2.5</cucumber.junit.version>
+    	<cucumber.spring.version>1.2.5</cucumber.spring.version>
+    	<commons-io.version>1.3.2</commons-io.version>
+    	<selenium.version>3.141.59</selenium.version>
+    	<gson.version>2.8.5</gson.version>
+    	<org.sahli.asciidoc.confluence.publisher.version>0.6.0</org.sahli.asciidoc.confluence.publisher.version>
+    	<rootConfluenceUrl>http://10.49.145.139:8090</rootConfluenceUrl>
+    	<confluence.spaceKey>SLSCS</confluence.spaceKey>
+    	<confluence.ancestorId>1081783</confluence.ancestorId>
+    	<confluence.publisherUserName>documentationpublisher</confluence.publisherUserName>
+    	<confluence.publisherPassword>swisslog</confluence.publisherPassword>
+    	<asciidocRootFolder>./src/main/asciidoc</asciidocRootFolder>
+	</properties>
+
+	<build>
+		<finalName>${project.artifactId}</finalName>		
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.5.3</version>				
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-clean-plugin</artifactId>
+				<version>3.1.0</version>
+ 				<configuration>
+	                <filesets>
+	                    <fileset>
+	                        <directory>src/main/resources/static/documentation</directory>	                                            
+	                        <followSymlinks>false</followSymlinks>
+	                    </fileset>
+	                </filesets>
+            	</configuration>			
+			</plugin>					
+			<plugin>
+		        <groupId>org.asciidoctor</groupId>
+		        <artifactId>asciidoctor-maven-plugin</artifactId>
+		        <version>${asciidoctor.maven-plugin.version}</version>
+		        <dependencies>
+		        	<dependency>
+		        		<groupId>org.asciidoctor</groupId>
+      					<artifactId>asciidoctorj-diagram</artifactId>
+      					<version>${asciidoctorj.diagram.version}</version>
+		        	</dependency>
+		        	<dependency>
+                        <groupId>org.asciidoctor</groupId>
+                        <artifactId>asciidoctorj-pdf</artifactId>
+                        <version>${asciidoctorj.pdf.version}</version>
+                    </dependency>                   
+		        </dependencies>
+		        <configuration>
+		        	<sourceDirectory>${sourceDirectory}</sourceDirectory>
+        			<outputDirectory>${outputDirectory}</outputDirectory>
+		        	<attributes>
+		        		<!-- Uses the <img src="data:image/png;base64> syntax for diagrams -->
+		        		<data-uri/>
+		        		<!-- Allows access to remote files (eg. code on external GitHub) -->		        		
+		        		<imagesdir>./images</imagesdir>
+                        <allow-uri-read>true</allow-uri-read>
+		        	</attributes>
+		        	<requires>
+		        		<require>asciidoctor-diagram</require>
+		        	</requires>
+		        </configuration>        
+				<executions>
+                    <execution>                    
+                        <id>generate-html-doc</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <configuration>
+                            <backend>html5</backend>
+                        </configuration>
+                    </execution>                     
+ 					<execution>
+                        <id>generate-pdf-doc</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <configuration>
+                            <backend>pdf</backend>                    
+                            <sourceHighlighter>coderay</sourceHighlighter>
+                            <attributes>
+                                <icons>font</icons>
+                                <pagenums/>
+                                <toc/>
+                                <idprefix/>
+                                <idseparator>-</idseparator>
+                            </attributes>
+                        </configuration>
+                    </execution>      
+                </executions>		        
+		    </plugin>									
+		</plugins>
+		<pluginManagement>
+			<plugins>
+				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
+											org.asciidoctor
+										</groupId>
+										<artifactId>
+											asciidoctor-maven-plugin
+										</artifactId>
+										<versionRange>
+											[${asciidoctor.maven-plugin.version},)
+										</versionRange>
+										<goals>
+											<goal>
+												process-asciidoc
+											</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore></ignore>
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+				<!-- mvn org.sahli.asciidoc.confluence.publisher:asciidoc-confluence-publisher-maven-plugin:publish -->
+				<plugin>
+			    	<groupId>org.sahli.asciidoc.confluence.publisher</groupId>
+			    	<artifactId>asciidoc-confluence-publisher-maven-plugin</artifactId>
+			    	<version>${org.sahli.asciidoc.confluence.publisher.version}</version>
+			    	<configuration>
+				        <asciidocRootFolder>${asciidocRootFolder}</asciidocRootFolder>
+				        <sourceEncoding>UTF-8</sourceEncoding>
+				        <rootConfluenceUrl>${rootConfluenceUrl}</rootConfluenceUrl>
+				        <spaceKey>${confluence.spaceKey}</spaceKey>
+				        <ancestorId>${confluence.ancestorId}</ancestorId>
+				        <username>${confluence.publisherUserName}</username>
+				        <password>${confluence.publisherPassword}</password>
+				        <pageTitlePrefix xml:space="preserve"></pageTitlePrefix>
+				        <publishingStrategy>${confluence.publishingStrategy}</publishingStrategy>
+				        <pageTitleSuffix xml:space="preserve"> [${project.version}]</pageTitleSuffix>
+				        <versionMessage>Version ${project.version}</versionMessage>
+					        <attributes>
+					            <version>${project.version}</version>
+					            <someOtherKey>value</someOtherKey>
+					        </attributes>
+			    	</configuration> 
+			    </plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<repositories>
+		<repository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+		</repository>
+	</repositories>
+
+	<organization>
+		<name>Swisslog </name>
+		<url>www.swisslog.com</url>
+	</organization>
+	<scm>
+		<developerConnection>scm:git:ssh://github.com/marc-heimann/swisslo-demo-scs.git</developerConnection>
+		<connection>scm:git:ssh://github.com/marc-heimann/swisslo-demo-scs.git</connection>
+		<tag>HEAD</tag>
+	</scm>
+</project>

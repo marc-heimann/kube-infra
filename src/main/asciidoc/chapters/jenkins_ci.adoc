@@ -1,0 +1,7 @@
+=== Jenkins CI
+
+To get more information about Jenkins, please visit https://jenkins.io
+
+==== Accessing the Kubernetes hosted Jenkins instance
+
+Visit http://cicd.swisslog.net:30658

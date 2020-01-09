@@ -1,0 +1,66 @@
+[[section-install-coreos]]
+== Install CoreOS on HDD
+
+This section describes the steps you have to execute to get CoreOS installed on your HDD
+
+=== Preparing the installation configuration 
+
+The following code snippet illustrates how to set up your ignition.json configuration file, before executing the installation on your node. It just covers the basig settings which are sufficient to get startetd.
+Further configuration will be done by manipulating the configuration files or adding drop in files for CoreOS
+
+TIP: Drop In files will be installed into /etc/systemd/system
+
+[source, json] 
+{
+  "ignition": {
+    "config": {},
+    "timeouts": {},
+    "version": "2.1.0"
+  },
+  "networkd": {
+    "units": [{
+      "name": "00-ens192.network",
+      "contents": "[Match]\nName=ens192\n\n[Network]\nAddress=10.49.145.15\nGateway=10.49.147.254"
+    }]
+  },
+  "passwd": {
+    "users": [
+      {
+        "name": "core",
+        "sshAuthorizedKeys": [
+          "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDVLmZT8uW7AbQHJzUKSEaiCFDjcuyJLUGg2H9md4ofKD6uiZa7svTvgBwY/3SE/weKS1hMg4kINeN78YhofLl8Q9smA5JIO2hDf39ZvLvnTyhtlr6lBBnoam8TD5eDbXXsjZeOOvBvn1ir23051JqHm6s1j3OzLj8Opa/moLZ5eWh6DvRnyCEile8bC30l4JFXhMPenQv1T3mvMLlB0jv4gB0pj0TBrKIJKscXw/FQg4WZ8g9WYYJrzjwYYKFlSdKaKeuZK7XYXZz2ysw7tM8M665AjlS+bliXUKUAVh52LlhuOBV/Mx6rhJU/Gtb6juIC58xZCP83qJr9eNT7F50r core@master"
+        ]
+      }
+    ]
+  },
+  "storage": {},
+  "systemd": {}
+}
+
+ignition.json file
+
+
+=== Executing the actual installation
+The actual installation can be done for two different purposes. One is the installation on an actual Bare Metal environment, the other is for a VMWare driven environment.
+
+==== Install CoreOD on the HDD of a bare metal system:
+[source, bash]
+$ coreos-install -d /dev/sda -i ignition.json
+ 
+
+==== Install CoreOS on the HDD of a VMWare hosted system
+[source, bash]
+$ coreos-install -d /dev/sda -i ignition.json -o vmware_raw
+ 
+TIP: After installing the node, you will have to boot the machine with the boot flag "core.autologin" 
+therefore press 'e' at boot screen to add the flag.  
+Afterwards press Ctrl+x to further boot into OS
+
+
+=== First time core.autologin boot
+Booted into the OS set a password to the core user to enable external ssh access.
+
+[source, bash]
+sudo passwd core
+
+TIP: Please take care of the hostnames of the nodes. they'll need to be unique and unambigious.

@@ -1,0 +1,37 @@
+:description: This document illustrates the concepts of a self contained system.
+:organization: Swisslog
+:doctype: book
+:toc: macro
+toc::[]
+:toc-title: Table of Contents
+:toclevels: 5
+:sectnumlevels: 8
+:sectnums:
+:icons: font
+
+Swisslog Kubernetes Infrastructure Documentation
+===============================================
+
+image::./swisslog.png[Swisslog, 25%, align="right"]
+image::kubernetes-logo.png[Kubernetes Container Orchestration, 50%]
+
+Author: <marc.heimann@swisslog.com>
+v0.2-draft, {docdate}
+
+
+
+include::chapters/introduction.adoc[]
+
+include::chapters/install_coreos_on_hdd.adoc[]
+
+include::chapters/install_kubernetes_on_coreos.adoc[]
+
+include::chapters/kubeconfig.adoc[]
+
+include::chapters/coredns.adoc[]
+
+include::chapters/hosts.adoc[]
+
+include::chapters/software_infrastructure.adoc[]
+
+include::chapters/migrate_workloads.adoc[]

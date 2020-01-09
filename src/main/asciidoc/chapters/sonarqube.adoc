@@ -1,0 +1,8 @@
+=== Sonarqube
+
+Code Quality and Security
+
+You'll access sonarqube UI by visiting this link
+ 
+http://cicd.swisslog.net:30586
+

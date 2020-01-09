@@ -1,0 +1,374 @@
+[[section-install-kubernetes]]
+== Install Kubernetes components on CoreOS nodes
+
+After you have successfully prepared the host machines, you can start setting up the Kubernetes Cluster.
+Of course you could set up the whole cluster by hand but it is like pain in the xxx.
+
+I suggest the usage of kubeadm to setup the cluster. But first things first.
+
+=== Creating Cluster Root CA
+First please generate a cluster root ca by executing the following command:
+[source, bash]
+$ openssl genrsa -out ca-key.pem 2048
+$ openssl req -x509 -new -nodes -key ca-key.pem -days 10000 -out ca.pem -subj "/CN=kube-ca"
+
+TIP: You should store the CA keypair in a secure location for future use.
+
+=== Creating Kubernetes API Server Keypair
+This is a minimal openssl config which will be used when creating the api-server certificate. 
+We need to create a configuration file since some of the options we need to use can't be specified as flags. 
+Create openssl.cnf on your local machine and replace the following values:
+
+- Replace ${K8S_SERVICE_IP}
+- Replace ${MASTER_HOST}
+
+
+[source, bash]
+ [req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+[req_distinguished_name]
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = kubernetes
+DNS.2 = kubernetes.default
+DNS.3 = kubernetes.default.svc
+DNS.4 = kubernetes.default.svc.cluster.local
+IP.1 = ${K8S_SERVICE_IP} (in our case 10.49.145.110)
+IP.2 = ${MASTER_HOST} (in our case 10.49.145.110)
+ 
+==== Generating the API Server keypair
+[source, bash]
+$ openssl genrsa -out apiserver-key.pem 2048
+$ openssl req -new -key apiserver-key.pem -out apiserver.csr -subj "/CN=kube-apiserver" -config openssl.cnf
+$ openssl x509 -req -in apiserver.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out apiserver.pem -days 365 -extensions v3_req -extfile openssl.cnf
+
+
+==== Provide the Worker keypairs
+This procedure generates a unique TLS certificate for every Kubernetes worker node in your cluster. 
+While unique certificates are less convenient to generate and deploy, 
+they do provide stronger security assurances and the most portable installation experience across multiple cloud-based and on-premises Kubernetes deployments.
+
+===== OpenSSL Config
+We will use a common openssl configuration file for all workers. 
+The certificate output will be customized per worker based on environment variables used in conjunction with the configuration file. 
+Create the file worker-openssl.cnf on your local machine with the following contents:
+
+[source, bash]
+ [req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+[req_distinguished_name]
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+[alt_names]
+IP.1 = $ENV::WORKER_IP
+
+=== Generate the Kubernetes Worker Keypairs
+Run the following set of commands once for every worker node in the planned cluster. 
+Replace WORKER_FQDN and WORKER_IP in the following commands with the correct values for each node. 
+If the node does not have a routeable hostname, set WORKER_FQDN to a unique, per-node placeholder name like kube-worker-1, kube-worker-2 and so on.
+
+[source, bash]
+$ openssl genrsa -out worker1-worker-key.pem 4096
+$ WORKER_IP=10.49.145.111 openssl req -new -key worker1-worker-key.pem -out worker1-worker.csr -subj "/CN=worker1" -config worker-openssl.cnf
+$ WORKER_IP=10.49.145.111 openssl x509 -req -in worker1-worker.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out worker1-worker.pem -days 365 -extensions v3_req -extfile worker-openssl.cnf
+$ openssl genrsa -out worker2-worker-key.pem 4096
+$ WORKER_IP=10.49.145.112 openssl req -new -key worker2-worker-key.pem -out worker2-worker.csr -subj "/CN=worker2" -config worker-openssl.cnf
+$ WORKER_IP=10.49.145.112 openssl x509 -req -in worker2-worker.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out worker2-worker.pem -days 365 -extensions v3_req -extfile worker-openssl.cnf
+
+=== Generate the Cluster Administrator Keypair
+[source, bash]
+$ openssl genrsa -out admin-key.pem 2048
+$ openssl req -new -key admin-key.pem -out admin.csr -subj "/CN=kube-admin"
+$ openssl x509 -req -in admin.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out admin.pem -days 365
+
+=== Install Kubernetes
+We're going to install Kubernetes on to few CoreOS servers.
+
+==== Create Droplets
+First create three CoreOS-stable droplets, all in the same region and with your ssh-key.
+
+==== Install Binaries from Official Repositories
+On each of the servers, login over ssh and install the following software.
+
+===== SSH to CoreOS
+CoreOS is setup with core as the primary user and when the droplet was created your ssh key was added to it so login with ssh core@IP_ADDRESS.
+
+===== Sudo su
+Most of these commands require sudo so start by accessing root privileges with.
+[source, bash]
+$ sudo su
+
+===== Start & Enable Docker
+[source, bash]
+$ systemctl enable docker && systemctl start docker
+
+===== Install CNI Plugin
+Kubernetes requires a container networking interface to be installed, most of which require this CNI plugin.
+[source, bash]
+$ CNI_VERSION="v0.6.0"
+$ mkdir -p /opt/cni/bin
+$ curl -L "https://github.com/containernetworking/plugins/releases/download/${CNI_VERSION}/cni-plugins-amd64-${CNI_VERSION}.tgz" | tar -C /opt/cni/bin -xz
+$ Install kubeadm, kubelet, kubectl
+
+===== Download the kubeadm, kubelet, and kubectl official-release binaries.
+[source, bash]
+$ RELEASE="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
+$ mkdir -p /opt/bin
+$ cd /opt/bin
+$ curl -L --remote-name-all https://storage.googleapis.com/kubernetes-release/release/${RELEASE}/bin/linux/amd64/{kubeadm,kubelet,kubectl}
+$ chmod +x {kubeadm,kubelet,kubectl}
+
+===== Create K8s Services
+Download the SystemD service files.
+[source, bash]
+$ curl -sSL "https://raw.githubusercontent.com/kubernetes/kubernetes/${RELEASE}/build/debs/kubelet.service" | sed "s:/usr/bin:/opt/bin:g" > /etc/systemd/system/kubelet.service
+$ mkdir -p /etc/systemd/system/kubelet.service.d
+$ curl -sSL "https://raw.githubusercontent.com/kubernetes/kubernetes/${RELEASE}/build/debs/10-kubeadm.conf" | sed "s:/usr/bin:/opt/bin:g" > /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+===== Start & Enable Kubelet
+Kubelet is the primary Kubernetes service. Start and enable it.
+[source, bash]
+$ systemctl enable kubelet && systemctl start kubelet
+
+==== Initialize Cluster
+Kubeadm is a newer tool that initializes a Kubernetes cluster following best practices. Kubeadm is first ran on the master which produces another command to run on each additional node.
+
+===== Initialize the Master
+Use kubeadm to initialize a cluster on the private network, including an address range to use for the pod network (created with CNI).
+[source, bash]
+$ priv_ip=$(ip -f inet -o addr show eth1|cut -d\  -f 7 | cut -d/ -f 1 | head -n 1)
+$ /opt/bin/kubeadm init --apiserver-advertise-address=$priv_ip  --pod-network-cidr=192.168.0.0/16
+
+There will be a kubeadm command printed in the output. Copy and paste it into the nodes you want to join the cluster.
+   
+===== Initialize the Workers
+Run the kubeadm command from the output above to join the cluster.
+
+The cluster join command of the cicd cluster is the following:
+[source, bash]
+kubeadm join 10.49.145.110:6443 --token ukthlf.gb0jzswnlzpo740b     
+	--discovery-token-ca-cert-hash sha256:9355a456f44e0d9f12fbe093f2a8191e7cafdac8f33c34970b5bc3a548144830
+    
+[source, bash]
+$ ssh core@IP_ADDRESS
+$ sudo /opt/bin/kubeadm ...
+
+===== Access with Kubectl
+The /etc/kubernetes/admin.conf on the master file contains all of the information needed to access the cluster.
+
+Copy the admin.conf file to the ~/.kube/config (where kubectl expects it to be). As the core user:
+
+[source, bash]
+$ mkdir -p $HOME/.kube
+$ cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
+$ chown $(id -u):$(id -g) $HOME/.kube/config
+
+===== Kubectl Remotely
+This file can also be used on other computers to control the cluster. On your laptop, install kubectl and copy this config file to administer the cluster.
+[source, bash]
+$ scp core@IP_ADDRESS:/etc/kubernetes/admin.conf .kube/config
+
+===== Install CNI
+Kubernetes does not have a Container Network installed by default, so you'll need to install one. There are many options and here's how I'm currently installing Calico.
+[source, bash]
+$ kubectl apply -f https://docs.projectcalico.org/v3.0/getting-started/kubernetes/installation/hosted/kubeadm/1.7/calico.yaml
+
+==== Kubernetes knowledge
+It is highly recommended to get more in depth knowledge about the concepts of Kubernetes, therefore i suggest you to visit:
+ link:https://kubernetes.io[Official Kubernetes Site]
+ 
+==== Kubernetes PersistentVolumes
+One of the concpets of Kubernetes are PersistentVolumes. PersistentVolumes are storage areas (In our case a folder on the hdd or an empty hdd) where applications stores their data in.
+To make our cluster able to provide the data storage ability to its workloads, i decided in this case to define a storage-class called local-storage and make it the default storage-class in the cluster.
+
+The advantage ot this approach is to have the opportunity to provide cheap internal disk space to our cluster. The downside of it is that you'll have to clean up a Persistencevolume that was used by an uninstalld application manually. This is because there is no provisioner available for this feature yet. 
+
+===== Creating the local-storage StorageClass:
+Create a file called storage-class-local-storage.yaml and add the following content:
+[source, yaml]
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+
+===== Creating the storage-class
+To actually create the storage class, execute the following command:
+[source, bash]
+$ kubectl create -f storage-class-local-storage.yaml
+
+===== Making the local-storage StorageClass the default
+[source, bash]
+$ kubectl patch storageclass local-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+===== Creating PersistentVolume(s)
+NOTE: Please create one persistent volume per application you want to install (When using local-storage)
+
+IMPORTANT: If you undeploy an application that claimed a persistent volume, you need to check 
+the Kubernetes Dashboard for a failing volume, log in as user core to the host machine e.g. 
+worker1,  clean up the folder that is referenced by the pv and create this pv once again in 
+kubernetes-dashboard (or kubectl apply -f pvcreationfile.yml)
+
+image::images/failing-pvs.png[Kubernetes Dashboard shows failing pvs that you'll have to clean up manually and redefine the pv afterwards]
+
+In the following code box, you see the definition file for the first pv on node worker1:
+[source, yaml]
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: worker1-pv
+spec:
+  capacity:
+    storage: 10Gi 
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-storage
+  local:
+    path: /etc/kubernetes/persistentvolume
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - worker1
+
+In the following code box, you see the definition file for the first pv on node worker2:
+[source, yaml]
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: worker2-pv
+spec:
+  capacity:
+    storage: 10Gi 
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-storage
+  local:
+    path: /etc/kubernetes/persistentvolume
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - worker2
+
+==== Deploy the Kubernetes dashboard
+Use the following steps to deploy the Kubernetes dashboard, heapster, and the influxdb backend for CPU and memory metrics to your cluster.
+
+*To deploy the Kubernetes dashboard*
+
+Deploy the Kubernetes dashboard to your cluster:
+
+	$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
+
+Output will be:	
+
+	secret "kubernetes-dashboard-certs" created  
+	serviceaccount "kubernetes-dashboard" created
+	role "kubernetes-dashboard-minimal" created
+	rolebinding "kubernetes-dashboard-minimal" created
+	deployment "kubernetes-dashboard" created
+	service "kubernetes-dashboard" created
+
+Deploy heapster to enable container cluster monitoring and performance analysis on your cluster:
+
+	$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/heapster.yaml
+
+NOTE: Although heapster is deprecated, it is currently the only supported metrics provider for the Kubernetes dashboard. For more information, see https://github.com/kubernetes/dashboard/issues/2986.
+
+Output:
+
+	serviceaccount "heapster" created
+	deployment "heapster" created
+	service "heapster" created
+
+Deploy the influxdb backend for heapster to your cluster:
+
+	$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/influxdb.yaml
+
+Output:
+
+	deployment "monitoring-influxdb" created
+	service "monitoring-influxdb" created
+	
+Create the heapster cluster role binding for the dashboard:
+
+	$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/rbac/heapster-rbac.yaml
+
+===== Step 2: Create an swisslog-admin Service Account and Cluster Role Binding
+
+By default, the Kubernetes dashboard user has limited permissions. In this section, you create an swisslog-admin service account and cluster role binding that you can use to securely connect to the dashboard with admin-level permissions. For more information, see Managing Service Accounts in the Kubernetes documentation.
+
+*To create the swisslog-admin service account and cluster role binding*
+
+IMPORTANT: The example service account created with this procedure has full cluster-admin (superuser) privileges on the cluster. For more information, see Using RBAC Authorization in the Kubernetes documentation.
+
+Create a file called swisslog-admin-service-account.yaml with the text below. This manifest defines a service account and cluster role binding called swisslog-admin.
+
+[source, yaml]
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: swisslog-admin
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: swisslog-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: swisslog-admin
+  namespace: kube-system
+  
+Apply the service account and cluster role binding to your cluster:
+
+[source, bash]
+$ kubectl apply -f swisslog-admin-service-account.yaml
+
+Output:
+
+	serviceaccount/swisslog-admin created
+	clusterrolebinding.rbac.authorization.k8s.io/swisslog-admin created
+
+
+==== Access the Kubernetes dashboard
+To access the Kubernetes Dashboard, you need to
+
+Start the *kubectl proxy*.
+
+[source, bash]
+$ kubectl proxy
+
+Open the following link with a web browser to access the dashboard endpoint:
+
+http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/login
+
+Select token and paste the following token:
+
+	eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJzd2lzc2xvZy1hZG1pbi10b2tlbi1mZms2biIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJzd2lzc2xvZy1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjU0YTA2OTYyLTkxZTItNDIxNS1iMTEwLTc0ZjE5ZjE0NDA1ZSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTpzd2lzc2xvZy1hZG1pbiJ9.DmHBGxMM99tShNeyFYOaRj7kiGbJChbP0Zpep-uRxtZ-wKc2QpSHWka_vznD3j5xzZR6tUObuK62eopdm2rz4yG1945mO8S02IGzxx5bVwTSPgSjNctsSi-seZKN153YQz-C0TnNF0ADcGFytFORCrYb4YH-iT_1sqkXn1yiV6i6ImhkbYPtvtxN1GbIIK97fMtcqmy3Ed9LZrBCm7O-4UJyewDuBUobvzB531707rO8AI6JeXDG4rxtXFQc6XSOeSTNiMVQh44JrOrCEZ5gLKN7pBKRfndQY2zbVpkD7BSVvAPiMDuzlLaAJlbzFMyPpvsAQmw_YeO9NWDgM9Yf9Q
+
+image::images/dashboard-token-auth.png[Dashboard auth with token]
+
+NOTE: It may take a few minutes before CPU and memory metrics appear in dashboard. (For bare metal installation with internal HDD it may never appear)

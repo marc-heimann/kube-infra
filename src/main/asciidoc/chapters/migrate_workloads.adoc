@@ -1,0 +1,23 @@
+[[section-workload-migration]]
+=== Migrate Workloads
+
+Please do the following steps for each namespace in the cluster that you want to migrate to a new cluster
+
+Namespace default:
+
+kubectl config use-context <source cluster>
+
+	1. kubectl get ds,rs,deploy,sts,svc,configmap,secret,ingress,pvc -n default -o yaml --export > default.yaml
+
+	2. kubectl get pv -n default -o yaml --export > default-pv.yaml
+
+	3. kubectl get sa -n default -o yaml --export > default-sa.yaml
+
+kubectl config use-context <destination cluster>
+
+	1. kubectl apply -f default-sa.yaml
+	2. kubectl apply -f default-pv.yaml
+
+	3. Remove all available (the one that are not failing) pv from the cluster before re import the default.yaml
+
+	4. kubectl apply -f default.yaml

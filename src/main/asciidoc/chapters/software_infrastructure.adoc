@@ -1,0 +1,16 @@
+== Software Infrastructure
+
+To achieve a maximum grade in automation it is necessary to have the proper software infrastructure in place.
+This chapter leads you through the installation of our infrastructure software landscape.
+
+include::jenkins_ci.adoc[]
+
+include::gitlab.adoc[]
+
+include::sonatype_nexus.adoc[]
+
+include::spinnaker_cd.adoc[]
+
+include::minio.adoc[]
+
+include::sonarqube.adoc[]

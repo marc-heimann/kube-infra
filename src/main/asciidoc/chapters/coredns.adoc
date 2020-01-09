@@ -1,0 +1,25 @@
+[[section-coredns]]
+=== CoreDNS
+
+In our specific case, we have to apply some specific rewrite rules to our coredns configuration to ensure the availability of certain services
+
+[source, yaml]
+ .:53 {
+    errors
+    health
+    rewrite name gitlab.swisslog.net my-release-gitlab-ce.default.svc.cluster.local
+    rewrite name nexus.swisslog.net nexus-sonatype-nexus.default.svc.cluster.local
+    rewrite name container.swisslog.net nexus-sonatype-nexus.default.svc.cluster.local
+    rewrite name charts.swisslog.net my-chartmuseum-chartmuseum.default.svc.cluster.local
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+       pods insecure
+       upstream
+       fallthrough in-addr.arpa ip6.arpa
+       ttl 30
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf
+    cache 30
+    loop
+    reload
+    loadbalance

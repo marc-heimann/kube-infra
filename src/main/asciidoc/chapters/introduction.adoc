@@ -1,0 +1,4 @@
+[[section-introduction]]
+== Introduction 
+
+This documentation shall guide you through the installation of a Kubernetes Cluster on Bare metal powered by CoreOS.

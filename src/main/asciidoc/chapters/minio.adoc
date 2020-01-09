@@ -1,0 +1,15 @@
+[[section-minio]]
+=== Minio
+
+To make Spinnaker able to access files that are necessary for deployment purpose, we use an emulated S3 storage solution called minio as minio is naturally supported by Spinnaker.
+
+To learn more about minio, please visit https://min.io
+
+==== Accessing the Minio UI
+
+To access the installed minio instance, please visit http://cicd.swisslog.net:30919
+
+=== Chart Museum
+
+==== Uploading a HELM Chart into Chart Museum
+curl --data-binary "@load-building-0.1.0.tgz" http://charts.swisslog.net:31981/api/charts  

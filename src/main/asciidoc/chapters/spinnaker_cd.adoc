@@ -1,0 +1,8 @@
+[[section-spinnaker]]
+=== Spinnaker CD & Configuration Management
+
+The CD solution of our choice is Spinnaker, to leearn about Spinnaker please visit https://spinnaker.io
+
+==== Accessing the Spinnaker Instance
+
+To access the available Spinnaker Instance, please visit http://cicd.swisslog.net:32076 
